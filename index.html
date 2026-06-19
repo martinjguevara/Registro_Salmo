@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Empleados</title>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+        }
+        
+        /* Contenedor vertical para los botones */
+        .columna-botones { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 25px; 
+            width: 90%; 
+            max-width: 400px; 
+        }
+        
+        button { 
+            padding: 35px 20px; 
+            font-size: 24px; 
+            border-radius: 12px; 
+            border: none; 
+            cursor: pointer; 
+            color: white; 
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button:active { transform: scale(0.98); }
+        .btn-entrada { background-color: #2e7d32; } 
+        .btn-salida { background-color: #c62828; } 
+
+        .modal-overlay {
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); 
+            justify-content: center; 
+            align-items: center;
+            z-index: 1000; 
+        }
+        .modal-box {
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px;
+            text-align: center; 
+            width: 80%; 
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .modal-box p { 
+            font-size: 26px; 
+            margin-top: 0;
+            margin-bottom: 30px; 
+            color: #333;
+            font-weight: bold;
+        }
+        .modal-btn-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+        }
+        .btn-si { background-color: #1976d2; padding: 20px; font-size: 22px; } 
+        .btn-no { background-color: #757575; padding: 20px; font-size: 22px; } 
+    </style>
+</head>
+<body>
+
+    <h1>Control Horario</h1>
+    
+    <div class="columna-botones">
+        <button class="btn-entrada" onclick="prepararFichaje('Empleado A', 'Entrada')">Entrada Empleado A</button>
+        <button class="btn-salida" onclick="prepararFichaje('Empleado A', 'Salida')">Salida Empleado A</button>
+        <button class="btn-entrada" onclick="prepararFichaje('Empleado B', 'Entrada')">Entrada Empleado B</button>
+        <button class="btn-salida" onclick="prepararFichaje('Empleado B', 'Salida')">Salida Empleado B</button>
+    </div>
+
+    <div id="modal-confirmacion" class="modal-overlay">
+        <div class="modal-box">
+            <p id="texto-modal">¿Confirmar acción?</p>
+            <div class="modal-btn-grid">
+                <button class="btn-si" onclick="confirmarFichaje()">Sí</button>
+                <button class="btn-no" onclick="cerrarModal()">No</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const db = new Dexie("BaseDatosFichaje");
+        
+        db.version(1).stores({
+            registros: "++id, empleado, accion, timestamp, sincronizado"
+        });
+
+        let empleadoPendiente = "";
+        let accionPendiente = "";
+
+        function prepararFichaje(nombreEmpleado, tipoAccion) {
+            empleadoPendiente = nombreEmpleado;
+            accionPendiente = tipoAccion;
+            
+            document.getElementById('texto-modal').innerText = `¿Confirmar ${tipoAccion} de ${nombreEmpleado}?`;
+            document.getElementById('modal-confirmacion').style.display = 'flex';
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-confirmacion').style.display = 'none';
+        }
+
+        async function confirmarFichaje() {
+            const horaExacta = new Date().toISOString(); 
+
+            try {
+                await db.registros.add({
+                    empleado: empleadoPendiente,
+                    accion: accionPendiente,
+                    timestamp: horaExacta,
+                    sincronizado: false 
+                });
+
+                cerrarModal();
+
+            } catch (error) {
+                console.error("Error al guardar en base local:", error);
+                alert("❌ Ocurrió un error crítico al guardar el registro.");
+            }
+        }
+    </script>
+</body>
+</html>
