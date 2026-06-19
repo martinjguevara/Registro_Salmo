@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Empleados</title>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
+    <link rel="manifest" href="manifest.json">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker registrado con éxito'))
+                .catch(err => console.error('Error al registrar Service Worker:', err));
+            });
+        }
+    </script>
     
     <style>
         body { 
@@ -136,6 +148,59 @@
                 alert("❌ Ocurrió un error crítico al guardar el registro.");
             }
         }
+
+        // URL de tu futuro servidor en Render (por ahora ponemos una de prueba)
+        const URL_BACKEND = "https://tu-servidor-en-render.onrender.com/api/fichaje";
+
+        // Función que trabaja en segundo plano para enviar los datos
+        async function sincronizarDatos() {
+            // 1. Verificamos si el dispositivo tiene conexión a internet
+            if (!navigator.onLine) {
+                console.log("No hay internet. Sincronización pausada.");
+                return; 
+            }
+
+            try {
+                // 2. Buscamos todos los registros que NO han sido sincronizados
+                const pendientes = await db.registros.where('sincronizado').equals(false).toArray();
+                // Nota para Dexie: A veces los booleanos en índices requieren atención, 
+                // alternativamente usamos un filtro manual si falla:
+                // const todos = await db.registros.toArray();
+                // const pendientes = todos.filter(r => r.sincronizado === false);
+
+                if (pendientes.length === 0) {
+                    console.log("Todo está al día. No hay datos pendientes para subir.");
+                    return;
+                }
+
+                console.log(`Intentando sincronizar ${pendientes.length} registros...`);
+
+                // 3. Enviamos los datos al servidor uno por uno (o en bloque)
+                for (const registro of pendientes) {
+                    const respuesta = await fetch(URL_BACKEND, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(registro)
+                    });
+
+                    // 4. Si el servidor de Render dice "OK", lo marcamos como sincronizado localmente
+                    if (respuesta.ok) {
+                        await db.registros.update(registro.id, { sincronizado: true });
+                        console.log(`Registro ${registro.id} sincronizado con éxito.`);
+                    } else {
+                        console.error(`Fallo al subir el registro ${registro.id}`);
+                    }
+                }
+            } catch (error) {
+                console.error("Error de red al intentar contactar al servidor:", error);
+            }
+        }
+
+        // Ejecutar el intento de sincronización cada 1 minuto (60000 ms)
+        setInterval(sincronizarDatos, 60000);
+
+        // Y también intentar sincronizar inmediatamente cuando vuelva el internet
+        window.addEventListener('online', sincronizarDatos);
     </script>
 </body>
 </html>
