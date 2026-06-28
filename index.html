@@ -198,7 +198,7 @@
         }
 
         // Ejecutar el intento de sincronización cada 1 minuto (60000 ms)
-        setInterval(sincronizarDatos, 60000);
+        setInterval(sincronizarDatos, 10000);
 
         // Y también intentar sincronizar inmediatamente cuando vuelva el internet
         window.addEventListener('online', sincronizarDatos);
