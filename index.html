@@ -149,34 +149,38 @@
             }
         }
 
-        // URL de tu futuro servidor en Render (por ahora ponemos una de prueba)
         const URL_BACKEND = "https://registro-salmo-backend.onrender.com/api/fichaje";
 
-        // Función que trabaja en segundo plano para enviar los datos
+        // --- DECLARACIÓN DEL MUTEX ---
+        let sincronizando = false;
+
         async function sincronizarDatos() {
-            // 1. Verificamos si el dispositivo tiene conexión a internet
+            // 1. Verificamos si el candado está cerrado
+            if (sincronizando) {
+                console.log("⏳ Mutex activo: Sincronización en proceso. Esperando al próximo ciclo...");
+                return;
+            }
+
             if (!navigator.onLine) {
                 console.log("No hay internet. Sincronización pausada.");
                 return; 
             }
 
+            // 2. Cerramos el candado antes de iniciar operaciones asíncronas
+            sincronizando = true;
+
             try {
-                // 2. Buscamos todos los registros que NO han sido sincronizados
                 const todosLosRegistros = await db.registros.toArray();
                 const pendientes = todosLosRegistros.filter(registro => registro.sincronizado === false);
-                // Nota para Dexie: A veces los booleanos en índices requieren atención, 
-                // alternativamente usamos un filtro manual si falla:
-                // const todos = await db.registros.toArray();
-                // const pendientes = todos.filter(r => r.sincronizado === false);
 
                 if (pendientes.length === 0) {
                     console.log("Todo está al día. No hay datos pendientes para subir.");
+                    // Si hacemos return acá, igual pasará por el 'finally' para abrir el candado
                     return;
                 }
 
                 console.log(`Intentando sincronizar ${pendientes.length} registros...`);
 
-                // 3. Enviamos los datos al servidor uno por uno (o en bloque)
                 for (const registro of pendientes) {
                     const respuesta = await fetch(URL_BACKEND, {
                         method: 'POST',
@@ -184,24 +188,29 @@
                         body: JSON.stringify(registro)
                     });
 
-                    // 4. Si el servidor de Render dice "OK", lo marcamos como sincronizado localmente
                     if (respuesta.ok) {
                         await db.registros.update(registro.id, { sincronizado: true });
                         console.log(`Registro ${registro.id} sincronizado con éxito.`);
                     } else {
                         console.error(`Fallo al subir el registro ${registro.id}`);
+                        // Si falla un envío (por ej, Render sigue dormido o hay microcorte),
+                        // cortamos el bucle. Así no intentamos mandar el resto de la fila en vano.
+                        break; 
                     }
                 }
             } catch (error) {
                 console.error("Error de red al intentar contactar al servidor:", error);
+            } finally {
+                // 3. Garantía absoluta: El bloque finally siempre se ejecuta,
+                // asegurando que el candado se abra pase lo que pase.
+                sincronizando = false;
             }
         }
 
-        // Ejecutar el intento de sincronización cada 1 minuto (60000 ms)
+        // Ejecutar el intento de sincronización cada 10 segundos
         setInterval(sincronizarDatos, 10000);
 
-        // Y también intentar sincronizar inmediatamente cuando vuelva el internet
         window.addEventListener('online', sincronizarDatos);
     </script>
 </body>
-</html>
+</html
