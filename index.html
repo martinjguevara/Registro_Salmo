@@ -189,7 +189,7 @@
                     });
 
                     if (respuesta.ok) {
-                        await db.registros.update(registro.id, { sincronizado: true });
+                        await db.registros.delete(registro.id);
                         console.log(`Registro ${registro.id} sincronizado con éxito.`);
                     } else {
                         console.error(`Fallo al subir el registro ${registro.id}`);
