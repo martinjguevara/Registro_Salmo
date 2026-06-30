@@ -181,10 +181,17 @@
 
                 console.log(`Intentando sincronizar ${pendientes.length} registros...`);
 
+                // Buscamos la llave secreta en la memoria del dispositivo
+                const tokenLocal = localStorage.getItem('token_tablet');
+
                 for (const registro of pendientes) {
                     const respuesta = await fetch(URL_BACKEND, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            // Adjuntamos la llave al servidor
+                            'Authorization': `Bearer ${tokenLocal}` 
+                        },
                         body: JSON.stringify(registro)
                     });
 
@@ -211,6 +218,21 @@
         setInterval(sincronizarDatos, 10000);
 
         window.addEventListener('online', sincronizarDatos);
+
+        // --- PUERTA TRASERA PARA ADMINISTRADORES ---
+        // Seleccionamos el título h1 de la página
+        const tituloApp = document.querySelector('h1');
+
+        // Escuchamos el evento de "doble clic"
+        tituloApp.addEventListener('dblclick', () => {
+            const claveIngresada = prompt("Panel de Seguridad: Ingrese la clave para autorizar esta terminal.");
+            
+            if (claveIngresada) {
+                // Guardamos la clave en el disco duro del navegador
+                localStorage.setItem('token_tablet', claveIngresada);
+                alert("✅ Terminal autorizada correctamente.");
+            }
+        });
     </script>
 </body>
 </html
